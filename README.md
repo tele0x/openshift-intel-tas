@@ -6,7 +6,7 @@ Review the following documentation from Intel on how to use the TAS:
 - [Telemetry Aware Scheduling whitepaper](https://builders.intel.com/docs/networkbuilders/telemetry-aware-scheduling-automated-workload-optimization-with-kubernetes-k8s-technology-guide.pdf)
 - Official [Intel-TAS repo](https://github.com/intel/platform-aware-scheduling/tree/master/telemetry-aware-scheduling)
 
-This repository provides the instructions to run the Intel-TAS on a Red Hat OpenShift Container Platform.
+This repository provides the instructions to run the Intel-TAS on Red Hat OpenShift Container Platform.
 
 ## Table of Contents
 
@@ -36,8 +36,9 @@ Steps to get the Intel-TAS working on OpenShift:
 1. Activate UWM (User Workload Monitoring) in OpenShift.
    - Creates a thanos instance for user metrics 
 2. Install collectd helm charts to monitor power and other platform metrics.
-   - Deploy SCC (SecurityContextConstraint)
-   - Created custom image that includes pkgpower.py and events required by collectd plugins
+   - Deploy SCC (SecurityContextConstraints)
+   - Create `telemetry` namespace and label it
+   - Created custom image that includes pkgpower.py, typesdb and events required by collectd plugins
    - Daemonset and ServiceMonitor, RBAC for prometheus to scrape on the `telemetry` namespace
 4. Deploy Custom Metrics Proxy.
    - Important to set the PROMETHEUS variables in deployment.yaml 
@@ -57,18 +58,7 @@ Apply enable_user_workload.yaml
 # oc create -f enable_user_workload.yaml
 ```
 
-```yaml
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: cluster-monitoring-config
-  namespace: openshift-monitoring
-data:
-  config.yaml: |
-    enableUserWorkload: true
-```
-
-Check thanos pods are created under `openshift-user-workload-monitoring` namespace
+Check `prometheus-user-workload` pods are created under `openshift-user-workload-monitoring` namespace
 
 ```
 # oc get pods -n openshift-user-workload-monitoring
@@ -105,6 +95,21 @@ level=info ts=2022-06-12T21:16:51.704Z caller=main.go:975 msg="Completed loading
 
 ## Install collectd Chart
 
+Create `telemetry` namespace and add label required by user-workload-monitoring.
+
+```
+# oc create ns telemetry
+# oc label namespace telemetry openshift.io/cluster-monitoring=true
+```
+
+Apply SCC
+
+```
+# oc create -f collectd_scc.yaml
+```
+
+Install helm chart
+
 ```
 # cd collectd_chart/
 # helm install telemetry -n telemetry .
@@ -125,8 +130,6 @@ To use the helm release:
   $ helm status telemetry
   $ helm get all telemetry
 ```
-
-A namespace called `telemetry` will be created. the namespace is labeled with `openshift.io/cluster-monitoring: "true"`, the label is needed to use the User Workload Monitoring feature, basically creating a ServiceMonitor that will scrape the data from collectd and add it to.
 
 Verify pods are running:
 
@@ -156,7 +159,7 @@ collectd-xzhtt   2/2     Running   0          35s
 ....
 ```
 
-Collectd runs as a daemonset, we now have an instance on each node. Verify metrics are available to scrape with the ServiceMonitor
+Collectd runs as a daemonset, we now have an instance on each node. Verify metrics are available to scrape with the ServiceMonitor by curling the prometheus exporter plugin configured in collectd
 
 ```
 # oc get nodes
@@ -187,7 +190,7 @@ collectd_package_1_TDP_power_power{instance="node7.ocp4rony.dfw.ocp.run"} 90 165
 collectd_package_1_power_power{instance="node7.ocp4rony.dfw.ocp.run"} 24.6633647807335 1658342927386
 ```
 
-Check the servicemonitor is running:
+Check `ServiceMonitor` is running:
 
 ```
 # oc get servicemonitor -n telemetry
@@ -213,9 +216,8 @@ curl -X GET -kG "https://$THANOS_QUERIER_HOST/api/v1/query?" --data-urlencode "q
 
 {"status":"success","data":{"resultType":"vector","result":[{"metric":{"__name__":"up","container":"collectd","endpoint":"http-collectd","instance":"192.168.116.107:9103","job":"telemetry-service","namespace":"telemetry","pod":"collectd-bqcgd","prometheus":"openshift-monitoring/k8s","service":"telemetry-service"},"value":[1655076204.352,"1"]},{"metric":{"__name__":"up","container":"collectd","endpoint":"http-collectd","instance":"192.168.116.108:9103","job":"telemetry-service","namespace":"telemetry","pod":"collectd-xzhtt","prometheus":"openshift-monitoring/k8s","service":"telemetry-service"},"value":[1655076204.352,"1"]},{"metric":{"__name__":"up","container":"collectd","endpoint":"http-collectd","instance":"192.168.116.109:9103","job":"telemetry-service","namespace":"telemetry","pod":"collectd-q5m74","prometheus":"openshift-monitoring/k8s","service":"telemetry-service"},"value":[1655076204.352,"1"]}]}}
 ```
-```
 
-Check for en entry job `telemetry-service`, this tell us prometheus is now pulling the system metrics.
+Check for en entry job called `telemetry-service`, this tell us Prometheus is now pulling the system metrics from collectd.
 Let's try to pull a metric and see if it exists:
 
 ```
@@ -289,13 +291,13 @@ Let's try to pull a metric and see if it exists:
 
 ## Deploy Metrics Proxy
 
-The metrics-proxy is a component to replace the prometheus-adapter, it's responsible of translating Prometheus queries results into kubernetes Node metric then exposed by an APIservice.
+The metrics-proxy is a component to replace the prometheus-adapter, it's responsible of translating Prometheus queries results into kubernetes Node metric exposed by an APIservice.
 
 ```
 # cd metrics_proxy
 ```
 
-edit deploy/deployment.yaml and change the variables for PROMETHEUS_HOST and PROMETHEUS_TOKEN, you can either query directly prometheus or go through thanos. In this case will just go through Thanos, PROMETHEUS_HOST and PROMETHEUS_TOKEN has to match with the previous variables
+edit `deploy/deployment.yaml` and change the variables for PROMETHEUS_HOST and PROMETHEUS_TOKEN, you can either query directly prometheus or go Through thanos. In this case will just go through Thanos, PROMETHEUS_HOST and PROMETHEUS_TOKEN has to match with the previous variables.
 
 ```
 # oc create -f deploy/
@@ -479,6 +481,10 @@ secondary-scheduler-operator-d4b6cf5bd-d5kwp   1/1     Running   0          9d
 
 Deploy a Pod to test if our deployment works:
 Apply the tasdemo_pod.yaml
+
+```
+# oc create -f tasdemo_pod.yaml
+```
 
 ```yaml
 apiVersion: v1
