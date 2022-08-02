@@ -1,0 +1,44 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: collectd-cfg
+  namespace: telemetry
+data:
+  collectd.conf: |
+{{ .Files.Get "resources/collectd.conf" | indent 4}}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: typesdb
+  namespace: telemetry
+data:
+  types.db: |
+{{ .Files.Get "resources/types.db" | indent 4}}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: defaultplugins-conf
+  namespace: telemetry
+data:
+  default_plugins.conf: |
+{{ .Files.Get "resources/default_plugins.conf" | indent 4}}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pkgpower-conf
+  namespace: telemetry
+data:
+  pkgpower.conf: |
+{{ .Files.Get "resources/pkgpower.conf" | indent 4}}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: intel-pmu-conf
+  namespace: telemetry
+data:
+  intel_pmu.conf: |
+{{ .Files.Get "resources/intel_pmu.conf" | indent 4}}

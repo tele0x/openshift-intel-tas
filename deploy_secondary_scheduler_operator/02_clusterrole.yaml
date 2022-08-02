@@ -1,0 +1,50 @@
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: secondary-scheduler-operator
+rules:
+# added apigroup to access TAS policies
+- apiGroups: 
+  - telemetry.intel.io
+  resources:
+  - taspolicies
+  verbs: 
+  - "*"
+- apiGroups:
+  - operator.openshift.io
+  resources:
+  - secondaryschedulers
+  - secondaryschedulers/status
+  verbs:
+  - "*"
+- apiGroups:
+  - ""
+  resources:
+  - serviceaccounts
+  - configmaps
+  - events
+  verbs:
+  - "*"
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
+  - clusterrolebindings
+  verbs:
+  - '*'
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  verbs:
+  - "*"
+- apiGroups: [""]
+  resources:
+  - nodes
+  - persistentvolumes
+  - persistentvolumeclaims
+  - namespaces
+  verbs: ["list", "watch", "patch", "update"]
+- apiGroups: ["storage.k8s.io"]
+  resources:
+  - storageclasses
+  verbs: ["list", "watch", "patch", "update"]

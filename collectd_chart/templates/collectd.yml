@@ -1,0 +1,114 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2020 Intel Corporation
+
+# added namespace creation with UWM (User Workload Monitoring) label for OCP
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ .Values.namespace }}
+  labels:
+    openshift.io/cluster-monitoring: "true"
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{ .Values.collectd.name }}
+  namespace: {{ .Values.namespace }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ .Values.collectd.name }}
+  template:
+    metadata:
+      labels:
+        name: {{ .Values.collectd.name }}
+        app: {{ .Values.collectd.name }}
+    spec:
+      hostNetwork: true
+      containers:
+        - name: {{ .Values.exporter.name }}
+          image: {{ .Values.exporter.image }}
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 9105
+          args:
+            - "--collectd.listen-address=127.0.0.1:25826"
+            - "--web.listen-address=127.0.0.1:9105"
+            - "--collectd.typesdb-file=/etc/collectd.d/types.db"
+          volumeMounts:
+            - name: typesdb
+              mountPath: /etc/collectd.d/
+          ports:
+            - containerPort: 9105
+              hostPort: 9105
+              name: exporter
+        - name: {{ .Values.collectd.name }}
+          image: {{ .Values.collectd.image }}
+          #command: ["sleep"]
+          #args:
+          #  - "100000"
+          command: ["/usr/sbin/collectd", "-f", "-C", "/etc/collectd.conf"] 
+          imagePullPolicy: Always
+          securityContext:
+            privileged: true
+          resources:
+            requests:
+              cpu: {{ .Values.collectd.resources.requests.cpu }}
+            limits:
+              cpu: {{ .Values.collectd.resources.limits.cpu }}
+              memory: {{ .Values.collectd.resources.limits.memory }}
+          volumeMounts:
+            - name: varrun
+              mountPath: /var/run
+            - name: tmp
+              mountPath: /tmp
+            - name: collectd-cfg
+              mountPath: /etc/collectd.conf
+              subPath: collectd.conf
+            - name: defaultplugins-conf
+              mountPath: /etc/collectd.d/default_plugins.conf
+              subPath: default_plugins.conf
+            - name: typesdb
+              mountPath: /etc/collectd.d/types.db
+              subPath: types.db
+            - name: pkgpower-conf
+              mountPath: /etc/collectd.d/pkgpower.conf
+              subPath: pkgpower.conf
+            - name: intel-pmu-conf
+              mountPath: /etc/collectd.d/intel_pmu.conf
+              subPath: intel_pmu.conf
+          ports:
+            - containerPort: 9103
+              hostPort: 9103
+              name: http
+      #tolerations:
+      #  - effect: NoSchedule
+      #    key: cmk
+      #    operator: Exists
+      volumes:
+        - name: varrun
+          hostPath:
+            path: /var/run
+        - name: tmp
+          hostPath:
+            path: /tmp
+        - name: defaultplugins-conf
+          configMap:
+            name: defaultplugins-conf
+            defaultMode: 0744
+        - name: typesdb
+          configMap:
+            name: typesdb
+            defaultMode: 0744
+        - name: collectd-cfg
+          configMap:
+            name: collectd-cfg
+            defaultMode: 0744
+        - name: pkgpower-conf
+          configMap:
+            name: pkgpower-conf
+            defaultMode: 0744
+        - name: intel-pmu-conf
+          configMap:
+            name: intel-pmu-conf
+            defaultMode: 0744

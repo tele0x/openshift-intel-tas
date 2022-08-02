@@ -1,0 +1,11 @@
+apiVersion: telemetry.intel.com/v1alpha1
+kind: TASPolicy
+metadata:
+  name: scheduling-policy
+spec:
+  strategies:
+    dontschedule:
+      rules:
+      - metricname: collectd_package_0_power_power
+        operator: LessThan
+        target: 30

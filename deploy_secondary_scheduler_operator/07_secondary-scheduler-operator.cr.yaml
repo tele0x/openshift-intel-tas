@@ -1,0 +1,11 @@
+apiVersion: operator.openshift.io/v1
+kind: SecondaryScheduler
+metadata:
+  name: cluster
+  namespace: openshift-secondary-scheduler-operator
+spec:
+  logLevel: Debug
+  managementState: Managed
+  schedulerConfig: tascm
+  #schedulerImage: k8s.gcr.io/scheduler-plugins/kube-scheduler:v0.19.9
+  schedulerImage: quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:ebf3f88313c186736deb4eb14fd95a2985b37a79cb7eedc50ed104be9171294a

@@ -1,0 +1,26 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2020-2021 Intel Corporation
+
+#Common values
+namespace: telemetry
+pullPolicy: IfNotPresent
+component: collectd
+projectDir: ""
+
+#Collectd Values
+collectd:
+  #image: opnfv/barometer-collectd:stable
+  image: quay.io/ferossi/collectd-tas:latest 
+  replicas: 1
+  name: collectd
+  resources:
+    requests:
+      cpu: "0.1"
+    limits:
+      cpu: "1"
+      memory: "2Gi"
+
+exporter:
+  name: exporter
+  image: prom/collectd-exporter
+  typesDBMap: types-db

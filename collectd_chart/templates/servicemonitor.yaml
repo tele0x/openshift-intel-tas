@@ -1,0 +1,15 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  labels:
+    k8s-app: collectd
+  name: {{ .Values.namespace }}-service-monitor
+  namespace: {{ .Values.namespace }}
+spec:
+  endpoints:
+  - interval: 30s
+    port: http-collectd
+    scheme: http
+  selector:
+    matchLabels:
+      app: collectd

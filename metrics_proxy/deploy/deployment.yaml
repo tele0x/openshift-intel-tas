@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: metrics-proxy
+  name: metrics-proxy
+  namespace: openshift-monitoring
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: metrics-proxy
+  template:
+    metadata:
+      labels:
+        app: metrics-proxy
+      name: metrics-proxy
+    spec:
+      serviceAccount: prometheus-adapter
+      serviceAccountName: prometheus-adapter
+      containers:
+      - name: metrics-proxy
+        image: quay.io/ferossi/metrics-proxy
+        env:
+        - name: PROMETHEUS_HOST
+          value: prometheus-k8s-openshift-monitoring.apps.ocp4rony.dfw.ocp.run
+        - name: PROMETHEUS_TOKEN
+          value: "eyJhbGciOiJSUzI1NiIsImtpZCI6ImU3UFJDY0g1TXYwcmhkc0pVZ2ZqWjRzTjVUeVlhMzE1OVZ1TnlEVk5EMVUifQ.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJvcGVuc2hpZnQtbW9uaXRvcmluZyIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VjcmV0Lm5hbWUiOiJwcm9tZXRoZXVzLWs4cy10b2tlbi1xbGxtcCIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50Lm5hbWUiOiJwcm9tZXRoZXVzLWs4cyIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50LnVpZCI6ImMzYWNjN2E4LWVmNDQtNDYzMy04NjI1LTQ3MjZiZjU5Y2RmOSIsInN1YiI6InN5c3RlbTpzZXJ2aWNlYWNjb3VudDpvcGVuc2hpZnQtbW9uaXRvcmluZzpwcm9tZXRoZXVzLWs4cyJ9.F1LJ7js-wUvtm_uDKsOOD3mPkry4Xih7io0qdtgtmbh1L9Ecv6m9h6ZKhRDBgqO7OeXJ84ef87wGkHlP2iVFQZ7PW8LdVth0h2aqj-alyWVcSIVWpPTbWgIUyNu4qm1eu4j2e0RgcA8tOhsymaP7K4USfDewDziEkWtL9lJnIktLaPL4vrurACiol-rY61fbw0ztwX9IOt0LJ8wUgPbN9v0H0eyRd3HcwyDffzzyHtqA8HP-gjs4ZozCuCIHykAUagyfyx--aNDPFCgaHmawvZOBKyuBCJ14uzYCPzsYxL9_xZTg_Krv2jbsBgSPwU493df_2XiC-46p5ggNKLUIvA"
+        ports:
+        - containerPort: 5000
+        volumeMounts:
+        - mountPath: /var/run/tls
+          name: volume-serving-cert
+          readOnly: true
+      volumes:
+      - name: volume-serving-cert
+        secret:
+          secretName: prometheus-operator-tls
+          defaultMode: 420
+
