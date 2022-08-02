@@ -15,7 +15,6 @@ Review the following documentation from Intel on how to configure the TAS polici
 
 This repository provides the instructions to run Intel-TAS on Red Hat OpenShift Container Platform.
 
-
 ## Table of Contents
 
 <!-- TOC -->
@@ -23,7 +22,7 @@ This repository provides the instructions to run Intel-TAS on Red Hat OpenShift 
 - [Architecture](#architecture)
 - [Overview](#overview)
 - [Activate User Workload Monitoring](#activate-user-workload-monitoring)
-- [Install Collectd Chart](#install-collectd-chart) 
+- [Install Collectd Chart](#install-collectd-chart)
 - [Deploy Metrics Proxy](#deploy-metrics-proxy)
 - [Deploy Secondary Scheduler Operator](#deploy-secondary-scheduler-operator)
 - [Deploy Intel-TAS](#deploy-intel-tas)
@@ -37,12 +36,14 @@ This repository provides the instructions to run Intel-TAS on Red Hat OpenShift 
 
 > NOTE: OpenShift already comes with an extensive list of platform metrics available such as temperature, network, cpu, memory  etc.. Collectd allows you more flexibility in customization because you can load additional [plugins](https://collectd.org/wiki/index.php/Table_of_Plugins) as needed.
 
-> NOTE: In this case I have 3 baremetal nodes, if you try to run on a VMs based cluster `intel-rapl` (Running Average Power Limit) is not available and you will hit the following error on the collectd container:
+> NOTE: If you are using intel-rapl to monitor power usage it will not work on VMs, in this case I have 3 baremetal nodes, if you try to run on a VMs based cluster `intel-rapl` (Running Average Power Limit) you will hit the following error on the collectd container:
 
 ```
 [2022-08-02 15:39:18] [error] Unhandled python exception in loading module: OSError: [Errno 2] No such file or directory: '/sys/devices/virtual/powercap/intel-rapl/intel-rapl:0/max_energy_range_uj'
 Could not read power consumption wraparound value
 ```
+
+Other than this specific use case you can use the TAS on VMs with any other metric.
 
 ## Overview
 
@@ -406,7 +407,7 @@ We will use the container-experience-kit with the pre-packaged helm chart.
 
 Check the deployment manifest and make sure the TAS version is 0.1, 0.2 requires mandatory TLS certificates in order to work while 0.1 can run in "unsafe" mode with just `http`. I am working on securing the TAS to scheduler communication [here].
 
-We will use the `default` namespace, in OpenShift default is a "privileged" namespace, if you are deploying the TAS in a different namespace additional permission might be needed.
+We will use the `default` namespace.
 
 ```
 # git clone https://github.com/intel/container-experience-kits
