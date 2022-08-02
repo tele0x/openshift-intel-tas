@@ -1,6 +1,7 @@
 # Intel-TAS (Telemetry Aware Scheduling) on Red Hat OpenShift Container Platform
 
 The Intel-TAS is an extender of the default K8S scheduler that consumes "platform" metrics and makes intelligent scheduling/descheduling decisions based on defined policies. 
+
 Example use cases:
 
 - Sustainability awareness for workload placement (power, temperature, weather etc..)
@@ -13,6 +14,7 @@ Review the following documentation from Intel on how to configure the TAS polici
 - Official [Intel-TAS repo](https://github.com/intel/platform-aware-scheduling/tree/master/telemetry-aware-scheduling)
 
 This repository provides the instructions to run Intel-TAS on Red Hat OpenShift Container Platform.
+
 
 ## Table of Contents
 
