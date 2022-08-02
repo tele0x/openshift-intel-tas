@@ -71,7 +71,7 @@ Enable monitoring for user-defined projects in addition to the default platform 
 Apply enable_user_workload.yaml
 
 ```
-# oc create -f enable_user_workload.yaml
+# oc apply -f manifests/enable_user_workload.yaml
 ```
 
 Check `prometheus-user-workload` pods are created under `openshift-user-workload-monitoring` namespace.
@@ -89,7 +89,7 @@ thanos-ruler-user-workload-1          3/3     Running   0          38d
 Create an empty config:
 
 ```
-# oc apply -f user_workload_config.yaml
+# oc apply -f manifests/user_workload_config.yaml
 ```
 
 ```yaml
@@ -424,7 +424,7 @@ Let's apply a simple policy to not schedule on the node if the power usage is le
 Reference to the [TAS documentation](https://github.com/intel/platform-aware-scheduling/tree/master/telemetry-aware-scheduling#policy-definition) for additional `TASPolicy` configuration
 
 ```
-# oc create -f policy.yaml -n default
+# oc create -f manifests/tas_policy.yaml -n default
 ```
 
 ```yaml
@@ -496,7 +496,7 @@ Deploy a Pod to test if our deployment works:
 Apply the tasdemo_pod.yaml
 
 ```
-# oc create -f tasdemo_pod.yaml
+# oc create -f manifests/tasdemo_pod.yaml
 ```
 
 ```yaml
