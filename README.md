@@ -37,6 +37,13 @@ This repository provides the instructions to run Intel-TAS on Red Hat OpenShift 
 
 > NOTE: OpenShift already comes with an extensive list of platform metrics available such as temperature, network, cpu, memory  etc.. Collectd allows you more flexibility in customization because you can load additional [plugins](https://collectd.org/wiki/index.php/Table_of_Plugins) as needed.
 
+> NOTE: In this case I have 3 baremetal nodes, if you try to run on a VMs based cluster `intel-rapl` (Running Average Power Limit) is not available and you will hit the following error on the collectd container:
+
+```
+[2022-08-02 15:39:18] [error] Unhandled python exception in loading module: OSError: [Errno 2] No such file or directory: '/sys/devices/virtual/powercap/intel-rapl/intel-rapl:0/max_energy_range_uj'
+Could not read power consumption wraparound value
+```
+
 ## Overview
 
 Steps to get the Intel-TAS working on OpenShift:
