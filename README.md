@@ -21,7 +21,7 @@ This repository provides the instructions to run Intel-TAS on Red Hat OpenShift 
 <!-- TOC -->
 
 - [Architecture](#architecture)
-- [Summary](#summary)
+- [Overview](#overview)
 - [Activate User Workload Monitoring](#activate-user-workload-monitoring)
 - [Install Collectd Chart](#install-collectd-chart) 
 - [Deploy Metrics Proxy](#deploy-metrics-proxy)
@@ -37,7 +37,7 @@ This repository provides the instructions to run Intel-TAS on Red Hat OpenShift 
 
 > NOTE: OpenShift already comes with an extensive list of platform metrics available such as temperature, network, cpu, memory  etc.. Collectd allows you more flexibility in customization because you can load additional [plugins](https://collectd.org/wiki/index.php/Table_of_Plugins) as needed.
 
-## Summary
+## Overview
 
 Steps to get the Intel-TAS working on OpenShift:
 
