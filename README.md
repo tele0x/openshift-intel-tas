@@ -222,17 +222,14 @@ Check scraping job is added to the prometheus configuration
 ```
 
 Verify Thanos endpoint is now available:
+Set variables to access Thanos using the token.
 
 ```
 SECRET=`oc get secret -n openshift-user-workload-monitoring | grep  prometheus-user-workload-token | head -n 1 | awk '{print $1 }'`
 TOKEN=`echo $(oc get secret $SECRET -n openshift-user-workload-monitoring -o json | jq -r '.data.token') | base64 -d`
 THANOS_QUERIER_HOST=`oc get route thanos-querier -n openshift-monitoring -o json | jq -r '.spec.host'`
-curl -X GET -kG "https://$THANOS_QUERIER_HOST/api/v1/query?" --data-urlencode "query=up{namespace='telemetry'}" -H "Authorization: Bearer $TOKEN"
-
-{"status":"success","data":{"resultType":"vector","result":[{"metric":{"__name__":"up","container":"collectd","endpoint":"http-collectd","instance":"192.168.116.107:9103","job":"telemetry-service","namespace":"telemetry","pod":"collectd-bqcgd","prometheus":"openshift-monitoring/k8s","service":"telemetry-service"},"value":[1655076204.352,"1"]},{"metric":{"__name__":"up","container":"collectd","endpoint":"http-collectd","instance":"192.168.116.108:9103","job":"telemetry-service","namespace":"telemetry","pod":"collectd-xzhtt","prometheus":"openshift-monitoring/k8s","service":"telemetry-service"},"value":[1655076204.352,"1"]},{"metric":{"__name__":"up","container":"collectd","endpoint":"http-collectd","instance":"192.168.116.109:9103","job":"telemetry-service","namespace":"telemetry","pod":"collectd-q5m74","prometheus":"openshift-monitoring/k8s","service":"telemetry-service"},"value":[1655076204.352,"1"]}]}}
 ```
 
-Check for en entry job called `telemetry-service`, this tell us Prometheus is now pulling the system metrics from collectd.
 Let's try to pull a metric and see if it exists:
 
 ```
@@ -466,8 +463,8 @@ Use Secondary Scheduler Operator to run a standard kubernetes scheduler that wil
 For OpenShift versions >= 4.10 go to OperatorHub on OpenShift Web Console, search for "Secondary Scheduler Operator" and install it from there. Once installed you can apply the following two manifests:
 
 ```
-# oc create -f deploy_secondary_scheduler_operator/06_configmap.yaml
-# oc create -f deploy_secondary_scheduler_operator/07_secondary-scheduler-operator.cr.yaml
+# oc create -f secondary_scheduler_operator/06_configmap.yaml
+# oc create -f secondary_scheduler_operator/07_secondary-scheduler-operator.cr.yaml
 ```
 
 ### OpenShift < 4.10
@@ -478,10 +475,10 @@ If you build your own container image change `deploy_secondary_scheduler_operato
 We can now deploy the manifests:
 
 ```
-# oc create -f deploy_secondary_scheduler_operator/
+# oc create -f secondary_scheduler_operator/
 ```
 
-If you get an error on the last file `07_secondary-scheduler-operator.cr.yaml`, that means it didn't have enough time to create the CRD, if that happens just run `oc create -f deploy_secondary_scheduler_operator/07_secondary-scheduler-operator.cr.yaml`.
+If you get an error on the last file `07_secondary-scheduler-operator.cr.yaml`, that means it didn't have enough time to create the CRD, if that happens just run `oc create -f secondary_scheduler_operator/07_secondary-scheduler-operator.cr.yaml`.
 
 Check namespace `openshift-secondary-scheduler-operator`
 
