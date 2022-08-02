@@ -3,9 +3,9 @@ metadata:
   name: collectd-scc
 allowHostDirVolumePlugin: false
 allowHostIPC: false
-allowHostNetwork: false
+allowHostNetwork: true
 allowHostPID: false
-allowHostPorts: false
+allowHostPorts: true
 allowPrivilegeEscalation: true
 allowPrivilegedContainer: false
 allowedCapabilities: null
