@@ -1,21 +1,27 @@
 # Intel-TAS (Telemetry Aware Scheduling) on Red Hat OpenShift Container Platform
 
-The Intel-TAS is an extender of the default K8S scheduler that consumes platform metrics and makes intelligent scheduling/descheduling decisions based on operator-defined policies. 
-Review the following documentation from Intel on how to use the TAS:
+The Intel-TAS is an extender of the default K8S scheduler that consumes "platform" metrics and makes intelligent scheduling/descheduling decisions based on defined policies. 
+Example use cases:
+
+- Sustainability awareness for workload placement (power, temperature, weather etc..)
+- Guarante SLAs for example a Network Slice (throughput, packets loss, latency)
+- Workload placement on ML models (holistic network/apps view)
+
+Review the following documentation from Intel on how to configure the TAS policies:
 
 - [Telemetry Aware Scheduling whitepaper](https://builders.intel.com/docs/networkbuilders/telemetry-aware-scheduling-automated-workload-optimization-with-kubernetes-k8s-technology-guide.pdf)
 - Official [Intel-TAS repo](https://github.com/intel/platform-aware-scheduling/tree/master/telemetry-aware-scheduling)
 
-This repository provides the instructions to run the Intel-TAS on Red Hat OpenShift Container Platform.
+This repository provides the instructions to run Intel-TAS on Red Hat OpenShift Container Platform.
 
 ## Table of Contents
 
 <!-- TOC -->
 
 - [Architecture](#architecture)
-- [Steps](#steps)
+- [Summary](#summary)
 - [Activate User Workload Monitoring](#activate-user-workload-monitoring)
-- [Install collectd Chart](#install-collectd-chart) 
+- [Install Collectd Chart](#install-collectd-chart) 
 - [Deploy Metrics Proxy](#deploy-metrics-proxy)
 - [Deploy Secondary Scheduler Operator](#deploy-secondary-scheduler-operator)
 - [Deploy Intel-TAS](#deploy-intel-tas)
@@ -29,21 +35,21 @@ This repository provides the instructions to run the Intel-TAS on Red Hat OpenSh
 
 > NOTE: OpenShift already comes with an extensive list of platform metrics available such as temperature, network, cpu, memory  etc.. Collectd allows you more flexibility in customization because you can load additional [plugins](https://collectd.org/wiki/index.php/Table_of_Plugins) as needed.
 
-## Steps
+## Summary
 
 Steps to get the Intel-TAS working on OpenShift:
 
 1. Activate UWM (User Workload Monitoring) in OpenShift.
-   - Creates a thanos instance for user metrics 
-2. Install collectd helm charts to monitor power and other platform metrics.
+   - Creates a Thanos instance for user metrics 
+2. Install collectd helm chart to monitor power and other platform metrics.
    - Deploy SCC (SecurityContextConstraints)
    - Create `telemetry` namespace and label it
-   - Created custom image that includes pkgpower.py, typesdb and events required by collectd plugins
+   - Custom image that includes pkgpower.py, typesdb and events required by Intel collectd plugins
    - Daemonset and ServiceMonitor, RBAC for prometheus to scrape on the `telemetry` namespace
 4. Deploy Custom Metrics Proxy.
-   - Important to set the PROMETHEUS variables in deployment.yaml 
+   - Important to set correctly the PROMETHEUS variables in deployment.yaml
 5. Deploy Intel-TAS using the helm charts
-   - Use helm chart from experience container kits
+   - Use helm chart from Intel Experience Container Kit
 6. Deploy Secondary Scheduler Operator
    - Check the OpenShift version for correct procedure
 7. Test the setup.
@@ -58,7 +64,7 @@ Apply enable_user_workload.yaml
 # oc create -f enable_user_workload.yaml
 ```
 
-Check `prometheus-user-workload` pods are created under `openshift-user-workload-monitoring` namespace
+Check `prometheus-user-workload` pods are created under `openshift-user-workload-monitoring` namespace.
 
 ```
 # oc get pods -n openshift-user-workload-monitoring
@@ -102,10 +108,10 @@ Create `telemetry` namespace and add label required by user-workload-monitoring.
 # oc label namespace telemetry openshift.io/cluster-monitoring=true
 ```
 
-Apply SCC
+Apply SCC collectd_scc.yaml
 
 ```
-# oc create -f collectd_scc.yaml
+# oc create -f collectd/collectd_scc.yaml
 ```
 
 Install helm chart
@@ -159,7 +165,7 @@ collectd-xzhtt   2/2     Running   0          35s
 ....
 ```
 
-Collectd runs as a daemonset, we now have an instance on each node. Verify metrics are available to scrape with the ServiceMonitor by curling the prometheus exporter plugin configured in collectd
+Collectd runs as a daemonset, we now have an instance on each node. Verify metrics are available to scrape with the ServiceMonitor by curl the prometheus exporter plugin configured in collectd.
 
 ```
 # oc get nodes
@@ -550,12 +556,15 @@ I0729 14:48:01.128521       1 telemetryscheduler.go:222] "Filtered nodes for sch
 I0729 14:48:02.853721       1 enforce.go:241] "Evaluating scheduling-policy" component="controller"
 ```
 
-The TAS received the request and evaluated the policy defined in the pod. node7 was selected because the power usage is greater than 30. Success!
+The TAS received the request and evaluated the policy defined in the pod. node7 was selected because the power usage is greater than 30. 
 
-## Challenges running on OpenShift
+```
+# oc get pods -n default -o wide | grep tasdemo
+tasdemo                                           1/1     Running   0          3d11h   10.129.1.163   node7.ocp4rony.dfw.ocp.run   <none>           <none>
+```
 
-Intel-TAS is implemented using a [scheduler extender](https://github.com/kubernetes/design-proposals-archive/blob/main/scheduling/scheduler_extender.md), basically webhooks to filter/prioritize node selection, configured in [KubeSchedulerConfiguration](https://kubernetes.io/docs/reference/config-api/kube-scheduler-config.v1beta2/). 
+Success!
 
-In order for the TAS to work it requires telemetry information for policy consumption, telemetry provided using a [metrics pipeline](https://github.com/intel/platform-aware-scheduling/blob/master/telemetry-aware-scheduling/docs/custom-metrics.md). 
-OpenShift provides a pre-integrated monitoring stack based on Prometheus, the idea for this project was to re-use the supported stack from OpenShift without having to redeploy another Prometheus Operator instance. 
-The [CMO](https://github.com/openshift/cluster-monitoring-operator) (Cluster Monitoring Operator) is managed by the [CVO](https://github.com/openshift/cluster-version-operator) (Cluster Version Operator), in order to implement the Metrics Pipeline in Intel documentation we need to add `additionalScrapeConfig` by setting the operator in unmanaged mode. When an Operator is unmanaged it cannot be upgraded, for example if you are doing a cluster upgrade it will fail on the cluster-monitoring-operator, this is not desirable.
+## Challenges
+
+I experienced several challenges trying to run the Intel-TAS on OpenShift. In the [Challenges](CHALLENGES.md) document you can read detailed explanation about the failed approaches, design choices and how I got it to work on OpenShift.
