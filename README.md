@@ -1,12 +1,12 @@
 # Intel-TAS (Telemetry Aware Scheduling) on Red Hat OpenShift Container Platform
 
-The Intel-TAS is an extender of the default K8S scheduler that consumes "platform" metrics and makes intelligent scheduling/descheduling decisions based on defined policies. 
+The Intel-TAS is an extender of the default K8S scheduler that consumes "platform" metrics and makes intelligent scheduling/descheduling decisions based on defined policies. The Intel-TAS runs within the same cluster. For distributed use cases the architecture will use a centralized control plane with RWN (Remote Worker Node) this way the TAS could intelligently distribute workload.
 
 Example use cases:
 
 - Sustainability awareness for workload placement (power, temperature, weather etc..)
-- Guarante SLAs for example a Network Slice (throughput, packets loss, latency)
-- Workload placement on ML models (holistic network/apps view)
+- Guarantee SLAs (an example use case for 5G Network Slicing). (throughput, packets loss, latency)
+- Workload placement based on ML models (holistic network/apps view)
 
 Review the following documentation from Intel on how to configure the TAS policies:
 
@@ -20,7 +20,7 @@ This repository provides the instructions to run Intel-TAS on Red Hat OpenShift 
 <!-- TOC -->
 
 - [Architecture](#architecture)
-- [Overview](#overview)
+- [Summary](#summary)
 - [Activate User Workload Monitoring](#activate-user-workload-monitoring)
 - [Install Collectd Chart](#install-collectd-chart)
 - [Deploy Metrics Proxy](#deploy-metrics-proxy)
@@ -43,12 +43,13 @@ This repository provides the instructions to run Intel-TAS on Red Hat OpenShift 
 Could not read power consumption wraparound value
 ```
 
-Other than this specific use case you can use the TAS on VMs with any other metric.
+Other than this specific use case related to power usage you can use the TAS on VMs with any other kind of metric.
 
-## Overview
+## Summary
 
 Steps to get the Intel-TAS working on OpenShift:
 
+0. Clone this repository
 1. Activate UWM (User Workload Monitoring) in OpenShift.
    - Creates a Thanos instance for user metrics 
 2. Install collectd helm chart to monitor power and other platform metrics.
@@ -64,11 +65,21 @@ Steps to get the Intel-TAS working on OpenShift:
    - Check the OpenShift version for correct procedure
 7. Test the setup.
 
+## Clone this repository
+
+First step is to clone this repository
+
+```
+# git clone https://github.com/tele0x/ocp-intel-tas
+# cd ocp-intel-tas
+```
+
+
 ## Activate User Workload Monitoring
 
-Enable monitoring for user-defined projects in addition to the default platform monitoring provided by OpenShift.
+Enable monitoring for user-defined projects in addition to the default platform monitoring provided by OpenShift. This feature allows to use the monitoring stack from OpenShift for your workload/applications.
 
-Apply enable_user_workload.yaml
+Apply enable_user_workload.yaml it will create the `openshift-user-workload-monitoring` namespace
 
 ```
 # oc apply -f manifests/enable_user_workload.yaml
@@ -304,7 +315,7 @@ Let's try to pull a metric and see if it exists:
 
 ## Deploy Metrics Proxy
 
-The metrics-proxy is a component to replace the prometheus-adapter, it's responsible of translating Prometheus queries results into kubernetes Node metric exposed by an APIservice.
+The metrics-proxy is a component responsible of translating Prometheus queries results into kubernetes Node metric exposed by an APIservice. Similar to prometheus-adapter but specific to be used with the TAS.
 
 ```
 # cd metrics_proxy
@@ -412,7 +423,8 @@ We will use the `default` namespace.
 ```
 # git clone https://github.com/intel/container-experience-kits
 # cd container-experience-kits/roles/platform_aware_sheduling_install/charts/telemetry-aware-scheduling/charts/telemetry-aware-scheduler
-# helm install -n telemetry-aware-scheduling -n default .
+# oc apply -f crd/tas-policy-crd.yaml
+# helm install telemetry-aware-scheduling -n default .
 ```
 
 Verify TAS is running `oc get pods -n default | grep tas`
