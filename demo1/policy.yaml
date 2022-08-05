@@ -4,8 +4,13 @@ metadata:
   name: power-policy
 spec:
   strategies:
+    deschedule:
+      rules:
+      - metricname: collectd_package_0_power_power
+        operator: GreaterThan
+        target: 33
     dontschedule:
       rules:
       - metricname: collectd_package_0_power_power
         operator: GreaterThan
-        target: 30
+        target: 32

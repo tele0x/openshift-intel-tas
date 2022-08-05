@@ -16,3 +16,12 @@ spec:
         limits:
           telemetry/scheduling: 1
   schedulerName: secondary-scheduler
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: scheduling-policy
+                operator: NotIn
+                values:
+                  - violating

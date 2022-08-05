@@ -1,0 +1,22 @@
+apiVersion: telemetry.intel.com/v1alpha1
+kind: TASPolicy
+metadata:
+  name: scheduling-policy
+spec:
+  strategies:
+    deschedule:
+      rules:
+      - metricname: collectd_package_0_power_power
+        operator: Equals
+        target: 30
+    dontschedule:
+      rules:
+      - metricname: collectd_package_0_power_power
+        operator: LessThan
+        target: 30
+    labeling:
+      rules:
+      - metricname: collectd_package_0_power_power
+        operator: LessThan
+        target: 30
+        labels: ["overpower=high"]
