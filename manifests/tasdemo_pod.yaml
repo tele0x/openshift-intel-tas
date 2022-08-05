@@ -5,7 +5,7 @@ metadata:
   namespace: default
   labels:
     app: demo
-    telemetry-policy: scheduling-policy
+    telemetry-policy: power-policy
 spec:
   containers:
     - name: tasdemo
@@ -21,7 +21,7 @@ spec:
       requiredDuringSchedulingIgnoredDuringExecution:
         nodeSelectorTerms:
           - matchExpressions:
-              - key: scheduling-policy
+              - key: power-policy
                 operator: NotIn
                 values:
                   - violating

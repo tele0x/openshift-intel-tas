@@ -58,11 +58,10 @@ Steps to get the Intel-TAS working on OpenShift:
 3. Install collectd helm chart to monitor power and other platform metrics.
    - Deploy SCC (SecurityContextConstraints)
    - Create `telemetry` namespace and label it
-   - Daemonset and ServiceMonitor, RBAC for prometheus to scrape on the `telemetry` namespace
+   - `Daemonset` and `ServiceMonitor`, RBAC for prometheus to scrape on the `telemetry` namespace
 4. Deploy Custom Metrics Proxy.
    - Important to set correctly the PROMETHEUS variables in deployment.yaml
 5. Deploy Intel-TAS using the helm charts
-   - Use helm chart from Intel Experience Container Kit
 6. Deploy Secondary Scheduler Operator
    - Check the OpenShift version for correct procedure
 7. Deploy Descheduler Operator
@@ -88,7 +87,7 @@ Enable monitoring for user-defined projects in addition to the default platform 
 Apply enable_user_workload.yaml. The namespace `openshift-user-workload-monitoring` will be automatically created.
 
 ```
-# oc apply -f manifests/user_workload_enable.yaml
+# oc apply -f telemetry/user_workload_monitoring/user_workload_enable.yaml
 ```
 
 ```yaml
@@ -117,7 +116,7 @@ thanos-ruler-user-workload-1          3/3     Running   0          38d
 Create an empty config:
 
 ```
-# oc apply -f manifests/user_workload_config.yaml
+# oc apply -f telemetry/user_workload_monitoring/user_workload_config.yaml
 ```
 
 ```yaml
@@ -330,7 +329,7 @@ Let's try to pull a metric and see if it exists:
 }
 ```
 
-In addition you can check on OpenShift Web Console. Under *Monitoring* -> *Metrics* enter in the expression text area collectd_package_0_power_power and press the "Run Query" button
+In addition you can check on OpenShift Web Console. Under *Monitoring* -> *Metrics* enter in the expression text area collectd_package_0_power_power and press the "Run Queries" button
 
 ![Collectd Metric](img/collectd_metric.png)
 
@@ -344,6 +343,8 @@ The metrics-proxy is a component responsible of translating Prometheus queries r
 ```
 
 edit `deploy/deployment.yaml` and change the variables for PROMETHEUS_HOST and PROMETHEUS_TOKEN, you can either query directly prometheus or go through Thanos. In this case will just go through Thanos, PROMETHEUS_HOST and PROMETHEUS_TOKEN has to match with the previous variables values for THANOS_QUERIER_HOST and TOKEN.
+
+We can now deploy the metrics-proxy:
 
 ```
 # oc create -f deploy/
@@ -375,7 +376,7 @@ thanos-querier-6957dbc8d4-jh4gh               5/5     Running   0          78d
 thanos-querier-6957dbc8d4-jt7wj               5/5     Running   0          3d21h
 ```
 
-Verify APIService is active:
+Verify custom metrics APIService is active:
 
 ```
 # oc get apiservice | grep custom```
@@ -491,7 +492,7 @@ spec:
         target: 30
 ```
 
-Verify policy is read correctly and metrics per node are pulled:
+Verify policy is read correctly and metrics are shown:
 
 
 ```
@@ -502,7 +503,7 @@ I0727 16:44:24.866183       1 strategy.go:41] "node8.ocp4rony.dfw.ocp.run collec
 I0727 16:44:24.866206       1 strategy.go:41] "node9.ocp4rony.dfw.ocp.run collectd_package_0_power_power = 22.214324721" component="controller"
 ```
 
-TAS is running and evaluating our `power-policy`. We can now delete the policy and move to the next step.
+TAS is running and evaluating our `power-policy`. We can now delete the policy and move to the next step. We will apply a new policy in our Demo.
 
 ```
 # oc delete -f manifests/tas_policy.yaml -n default
@@ -569,7 +570,7 @@ View Operator when installation is finished and click create `KubeDescheduler` i
 Change the default 3600 *Descheduler Interval Seconds*, this is how often the descheduler runs to identify any pod eviction.
 Set to 100 seconds in this case and click "Create".
 
-![Descheduler Operator Step 3](img/descheduler_step3.png)
+![Descheduler Operator Step 4](img/descheduler_step4.png)
 
 Verify the descheduler named "cluster" is running:
 
@@ -619,7 +620,7 @@ metadata:
   namespace: default
   labels:
     app: demo
-    telemetry-policy: scheduling-policy
+    telemetry-policy: power-policy
 spec:
   containers:
     - name: tasdemo
@@ -630,9 +631,18 @@ spec:
         limits:
           telemetry/scheduling: 1
   schedulerName: secondary-scheduler
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: power-policy
+                operator: NotIn
+                values:
+                  - violating
 ```
 
-In order to use our custom scheduler we must define `schedulerName` on the manifest. the name is defined in `06_configmap.yaml` under `KubeSchedulerConfiguration` object.
+In order to use our custom scheduler we must define `schedulerName` on the manifest. the name scheduler name was defined in `scheduling/secondary_scheduler_operator/06_configmap.yaml` under `KubeSchedulerConfiguration` object.
 To make sure the schedulerName is correct:
 
 ```
