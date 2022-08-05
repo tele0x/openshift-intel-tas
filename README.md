@@ -1,6 +1,6 @@
 # Intel-TAS (Telemetry Aware Scheduling) on Red Hat OpenShift Container Platform
 
-The Intel-TAS is an extender of the default K8S scheduler that consumes "platform" metrics and makes intelligent scheduling/descheduling decisions based on defined policies. The Intel-TAS runs within the same cluster. For distributed use cases the architecture will use a centralized control plane with RWN (Remote Worker Node) this way the TAS could intelligently distribute workload.
+The Intel-TAS is an extender of the default K8S scheduler that consumes platform metrics and makes intelligent scheduling/descheduling decisions based on defined policies. The Intel-TAS runs within the same cluster. For distributed use cases the architecture will use a centralized control plane with RWN (Remote Worker Node) this way the TAS could intelligently distribute workload.
 
 Example use cases:
 
@@ -10,8 +10,8 @@ Example use cases:
 
 Review the following documentation from Intel on how to configure the TAS policies:
 
-- [Telemetry Aware Scheduling whitepaper](https://builders.intel.com/docs/networkbuilders/telemetry-aware-scheduling-automated-workload-optimization-with-kubernetes-k8s-technology-guide.pdf)
 - Official [Intel-TAS repo](https://github.com/intel/platform-aware-scheduling/tree/master/telemetry-aware-scheduling)
+- [Telemetry Aware Scheduling whitepaper](https://builders.intel.com/docs/networkbuilders/telemetry-aware-scheduling-automated-workload-optimization-with-kubernetes-k8s-technology-guide.pdf)
 
 This repository provides the instructions to run Intel-TAS on Red Hat OpenShift Container Platform.
 
@@ -21,11 +21,16 @@ This repository provides the instructions to run Intel-TAS on Red Hat OpenShift 
 
 - [Architecture](#architecture)
 - [Summary](#summary)
-- [Activate User Workload Monitoring](#activate-user-workload-monitoring)
-- [Install Collectd Chart](#install-collectd-chart)
-- [Deploy Metrics Proxy](#deploy-metrics-proxy)
-- [Deploy Secondary Scheduler Operator](#deploy-secondary-scheduler-operator)
-- [Deploy Intel-TAS](#deploy-intel-tas)
+- [Getting Started](#getting-started)
+- [Telemetry](#telemetry)
+  - [Activate User Workload Monitoring](#activate-user-workload-monitoring)
+  - [Deploy Collectd](#install-collectd-chart)
+  - [Deploy Metrics Proxy](#deploy-metrics-proxy)
+- [Scheduling](#Scheduling)
+  - [Deploy Intel-TAS](#deploy-intel-tas)
+  - [Deploy Secondary Scheduler Operator](#deploy-secondary-scheduler-operator)
+  - [Deploy Descheduler Operator](#deploy-descheduler-operator)
+- [Demo 1](#demo-1)
 - [Challenges](#challenges)
 
 <!-- TOC -->
@@ -34,28 +39,25 @@ This repository provides the instructions to run Intel-TAS on Red Hat OpenShift 
 
 ![OpenShift Intel-TAS Architecture](img/OpenShift_Intel-TAS_Architecture.png)
 
-> NOTE: OpenShift already comes with an extensive list of platform metrics available such as temperature, network, cpu, memory  etc.. Collectd allows you more flexibility in customization because you can load additional [plugins](https://collectd.org/wiki/index.php/Table_of_Plugins) as needed.
+> NOTE: OpenShift already comes with an extensive list of platform metrics available such as temperature, network, cpu, memory  etc.. Collectd allows you additional customization by loading [plugins](https://collectd.org/wiki/index.php/Table_of_Plugins) as needed.
 
-> NOTE: If you are using intel-rapl to monitor power usage it will not work on VMs, in this case I have 3 baremetal nodes, if you try to run on a VMs based cluster `intel-rapl` (Running Average Power Limit) you will hit the following error on the collectd container:
+> NOTE: intel-rapl is used to monitor power usage and will not work on VMs, in this case I have 3 baremetal nodes. On a VMs based cluster `intel-rapl` (Running Average Power Limit) will return the following error on the collectd container: [2022-08-02 15:39:18] [error] Unhandled python exception in loading module: OSError: [Errno 2] No such file or directory: '/sys/devices/virtual/powercap/intel-rapl/intel-rapl:0/max_energy_range_uj' Could not read power consumption wraparound value
 
-```
-[2022-08-02 15:39:18] [error] Unhandled python exception in loading module: OSError: [Errno 2] No such file or directory: '/sys/devices/virtual/powercap/intel-rapl/intel-rapl:0/max_energy_range_uj'
-Could not read power consumption wraparound value
-```
 
-Other than this specific use case related to power usage you can use the TAS on VMs with any other kind of metric.
+Other than this specific use case related to power usage you can use the TAS on a VMs based cluster with any other metric.
 
 ## Summary
 
+Below the high-level steps to run achieve 
+
 Steps to get the Intel-TAS working on OpenShift:
 
-0. Clone this repository
-1. Activate UWM (User Workload Monitoring) in OpenShift.
+1. Clone this repository
+2. Activate UWM (User Workload Monitoring) in OpenShift.
    - Creates a Thanos instance for user metrics 
-2. Install collectd helm chart to monitor power and other platform metrics.
+3. Install collectd helm chart to monitor power and other platform metrics.
    - Deploy SCC (SecurityContextConstraints)
    - Create `telemetry` namespace and label it
-   - Custom image that includes pkgpower.py, typesdb and events required by Intel collectd plugins
    - Daemonset and ServiceMonitor, RBAC for prometheus to scrape on the `telemetry` namespace
 4. Deploy Custom Metrics Proxy.
    - Important to set correctly the PROMETHEUS variables in deployment.yaml
@@ -63,26 +65,41 @@ Steps to get the Intel-TAS working on OpenShift:
    - Use helm chart from Intel Experience Container Kit
 6. Deploy Secondary Scheduler Operator
    - Check the OpenShift version for correct procedure
-7. Test the setup.
+7. Deploy Descheduler Operator
+8. Run the demo
 
-## Clone this repository
+## Getting Started
 
-First step is to clone this repository
+Clone this repository.
 
 ```
-# git clone https://github.com/tele0x/ocp-intel-tas
-# cd ocp-intel-tas
+# git clone https://github.com/tele0x/openshift-intel-tas.git
+# cd openshift-intel-tas
 ```
 
+## Telemetry
 
-## Activate User Workload Monitoring
+Steps and components required to provide telemetry information to the TAS.
+
+### Activate User Workload Monitoring
 
 Enable monitoring for user-defined projects in addition to the default platform monitoring provided by OpenShift. This feature allows to use the monitoring stack from OpenShift for your workload/applications.
 
-Apply enable_user_workload.yaml it will create the `openshift-user-workload-monitoring` namespace
+Apply enable_user_workload.yaml. The namespace `openshift-user-workload-monitoring` will be automatically created.
 
 ```
-# oc apply -f manifests/enable_user_workload.yaml
+# oc apply -f manifests/user_workload_enable.yaml
+```
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cluster-monitoring-config
+  namespace: openshift-monitoring
+data:
+  config.yaml: |
+    enableUserWorkload: true
 ```
 
 Check `prometheus-user-workload` pods are created under `openshift-user-workload-monitoring` namespace.
@@ -120,7 +137,7 @@ Verify configuration is loaded successfully:
 level=info ts=2022-06-12T21:16:51.704Z caller=main.go:975 msg="Completed loading of configuration file" filename=/etc/prometheus/config_out/prometheus.env.yaml totalDuration=19.732179ms remote_storage=3.67µs web_handler=1.03µs query_engine=1.574µs scrape=3.926427ms scrape_sd=6.437638ms notify=269.528µs notify_sd=3.159647ms rules=71.163µs
 ```
 
-## Install collectd Chart
+### Deploy Collectd
 
 Create `telemetry` namespace and add label required by user-workload-monitoring.
 
@@ -129,16 +146,16 @@ Create `telemetry` namespace and add label required by user-workload-monitoring.
 # oc label namespace telemetry openshift.io/cluster-monitoring=true
 ```
 
-Apply SCC collectd_scc.yaml
+Apply `SecurityContextConstraints`,  required because collectd requires privileged access.
 
 ```
-# oc create -f collectd/collectd_scc.yaml
+# oc create -f telemetry/collectd/collectd_scc.yaml
 ```
 
 Install helm chart
 
 ```
-# cd collectd_chart/
+# cd telemetry/collectd/chart/
 # helm install telemetry -n telemetry .
 
 NAME: telemetry
@@ -167,7 +184,7 @@ collectd-bqcgd   2/2     Running   0          35s
 collectd-q5m74   2/2     Running   0          35s
 collectd-xzhtt   2/2     Running   0          35s
 
-# oc logs -f collectd-bqcgd -n telemetry
+# oc logs -f collectd-bqcgd -c collectd -n telemetry
 [2022-06-12 22:31:47] plugin_load: plugin "logfile" successfully loaded.
 [2022-06-12 22:31:47] logfile: invalid loglevel [debug] defaulting to 'info'
 [2022-06-12 22:31:47] [info] plugin_load: plugin "cpu" successfully loaded.
@@ -186,7 +203,7 @@ collectd-xzhtt   2/2     Running   0          35s
 ....
 ```
 
-Collectd runs as a daemonset, we now have an instance on each node. Verify metrics are available to scrape with the ServiceMonitor by curl the prometheus exporter plugin configured in collectd.
+Collectd runs as a daemonset, we now have an instance running on each node. Verify metrics are available on the node exporter.
 
 ```
 # oc get nodes
@@ -217,7 +234,7 @@ collectd_package_1_TDP_power_power{instance="node7.ocp4rony.dfw.ocp.run"} 90 165
 collectd_package_1_power_power{instance="node7.ocp4rony.dfw.ocp.run"} 24.6633647807335 1658342927386
 ```
 
-Check `ServiceMonitor` is running:
+Check `ServiceMonitor` is running. The `ServiceMonitor` creates a new job on prometheus configuration to scrape the data from the exporter
 
 ```
 # oc get servicemonitor -n telemetry
@@ -234,7 +251,7 @@ Check scraping job is added to the prometheus configuration
 ```
 
 Verify Thanos endpoint is now available:
-Set variables to access Thanos using the token.
+Set variables to access Thanos.
 
 ```
 SECRET=`oc get secret -n openshift-user-workload-monitoring | grep  prometheus-user-workload-token | head -n 1 | awk '{print $1 }'`
@@ -313,15 +330,20 @@ Let's try to pull a metric and see if it exists:
 }
 ```
 
+In addition you can check on OpenShift Web Console. Under *Monitoring* -> *Metrics* enter in the expression text area collectd_package_0_power_power and press the "Run Query" button
+
+![Collectd Metric](img/collectd_metric.png)
+
+
 ## Deploy Metrics Proxy
 
-The metrics-proxy is a component responsible of translating Prometheus queries results into kubernetes Node metric exposed by an APIservice. Similar to prometheus-adapter but specific to be used with the TAS.
+The metrics-proxy is a component responsible of translating Prometheus queries results into Kubernetes Node Metric. Similar to prometheus-adapter but specific to be used with the TAS.
 
 ```
-# cd metrics_proxy
+# cd telemetry/metrics_proxy
 ```
 
-edit `deploy/deployment.yaml` and change the variables for PROMETHEUS_HOST and PROMETHEUS_TOKEN, you can either query directly prometheus or go Through thanos. In this case will just go through Thanos, PROMETHEUS_HOST and PROMETHEUS_TOKEN has to match with the previous variables.
+edit `deploy/deployment.yaml` and change the variables for PROMETHEUS_HOST and PROMETHEUS_TOKEN, you can either query directly prometheus or go through Thanos. In this case will just go through Thanos, PROMETHEUS_HOST and PROMETHEUS_TOKEN has to match with the previous variables values for THANOS_QUERIER_HOST and TOKEN.
 
 ```
 # oc create -f deploy/
@@ -353,7 +375,7 @@ thanos-querier-6957dbc8d4-jh4gh               5/5     Running   0          78d
 thanos-querier-6957dbc8d4-jt7wj               5/5     Running   0          3d21h
 ```
 
-Verify APIService is active
+Verify APIService is active:
 
 ```
 # oc get apiservice | grep custom```
@@ -361,7 +383,7 @@ v1beta1.custom.metrics.k8s.io                 openshift-monitoring/metrics-proxy
 v1beta2.custom.metrics.k8s.io                 openshift-monitoring/metrics-proxy                           True        36d
 ```
 
-It should show "True", it means the API is now available, we can test it with this query:
+Status of "True" means the API is now available, we can test it with this request:
 
 ```
 # oc get --raw "/apis/custom.metrics.k8s.io/v1beta1/nodes/*/collectd_package_0_power_power" | jq 
@@ -409,31 +431,47 @@ It should show "True", it means the API is now available, we can test it with th
 }
 ```
 
-All the metrics are in place and ready to be consumed by the TAS.
-
-## Deploy Intel-TAS
-
-The easiest way to deploy the TAS is to use the Intel Container Experience Kits and the provided helm charts. Another options is to follow instruction on the [platform-aware-scheduling repo](https://github.com/intel/platform-aware-scheduling/tree/master/telemetry-aware-scheduling)
-We will use the container-experience-kit with the pre-packaged helm chart.
-
-Check the deployment manifest and make sure the TAS version is 0.1, 0.2 requires mandatory TLS certificates in order to work while 0.1 can run in "unsafe" mode with just `http`. I am working on securing the TAS to scheduler communication [here].
-
-We will use the `default` namespace.
+Logs from metrics-proxy:
 
 ```
-# git clone https://github.com/intel/container-experience-kits
-# cd container-experience-kits/roles/platform_aware_sheduling_install/charts/telemetry-aware-scheduling/charts/telemetry-aware-scheduler
-# oc apply -f crd/tas-policy-crd.yaml
+# oc logs -f -l app=metrics-proxy -n openshift
+Retrieve metric: collectd_package_0_power_power
+GET URL: https://prometheus-k8s-openshift-monitoring.apps.ocp4rony.dfw.ocp.run/api/v1/query?query=collectd_package_0_power_power
+<Response [200]>
+Parse data:
+{'status': 'success', 'data': {'resultType': 'vector', 'result': [{'metric': {'__name__': 'collectd_package_0_power_power', 'container': 'collectd', 'endpoint': 'http-collectd', 'exported_instance': 'node7.ocp4rony.dfw.ocp.run', 'instance': '192.168.116.107:9103', 'job': 'telemetry-service', 'namespace': 'telemetry', 'pod': 'collectd-bqcgd', 'service': 'telemetry-service'}, 'value': [1659674361.189, '32.0116113817915']}, {'metric': {'__name__': 'collectd_package_0_power_power', 'container': 'collectd', 'endpoint': 'http-collectd', 'exported_instance': 'node8.ocp4rony.dfw.ocp.run', 'instance': '192.168.116.108:9103', 'job': 'telemetry-service', 'namespace': 'telemetry', 'pod': 'collectd-xzhtt', 'service': 'telemetry-service'}, 'value': [1659674361.189, '23.2479306776859']}, {'metric': {'__name__': 'collectd_package_0_power_power', 'container': 'collectd', 'endpoint': 'http-collectd', 'exported_instance': 'node9.ocp4rony.dfw.ocp.run', 'instance': '192.168.116.109:9103', 'job': 'telemetry-service', 'namespace': 'telemetry', 'pod': 'collectd-q5m74', 'service': 'telemetry-service'}, 'value': [1659674361.189, '19.8481904884772']}]}}
+status is success
+Nodes data: 
+[{'describedObject': {'kind': 'Node', 'name': 'node7.ocp4rony.dfw.ocp.run', 'apiVersion': '/v1'}, 'metricName': 'collectd_package_0_power_power', 'timestamp': '2022-08-05T04:39:21Z', 'value': '32.0116113817915', 'selector': None}, {'describedObject': {'kind': 'Node', 'name': 'node8.ocp4rony.dfw.ocp.run', 'apiVersion': '/v1'}, 'metricName': 'collectd_package_0_power_power', 'timestamp': '2022-08-05T04:39:21Z', 'value': '23.2479306776859', 'selector': None}, {'describedObject': {'kind': 'Node', 'name': 'node9.ocp4rony.dfw.ocp.run', 'apiVersion': '/v1'}, 'metricName': 'collectd_package_0_power_power', 'timestamp': '2022-08-05T04:39:21Z', 'value': '19.8481904884772', 'selector': None}]
+Response: 
+{'kind': 'MetricValueList', 'apiVersion': 'custom.metrics.k8s.io/v1beta2', 'metadata': {'selfLink': '/apis/custom.metrics.k8s.io/v1beta2/nodes/%2A/collectd_package_0_power_power'}, 'items': [{'describedObject': {'kind': 'Node', 'name': 'node7.ocp4rony.dfw.ocp.run', 'apiVersion': '/v1'}, 'metricName': 'collectd_package_0_power_power', 'timestamp': '2022-08-05T04:39:21Z', 'value': '32.0116113817915', 'selector': None}, {'describedObject': {'kind': 'Node', 'name': 'node8.ocp4rony.dfw.ocp.run', 'apiVersion': '/v1'}, 'metricName': 'collectd_package_0_power_power', 'timestamp': '2022-08-05T04:39:21Z', 'value': '23.2479306776859', 'selector': None}, {'describedObject': {'kind': 'Node', 'name': 'node9.ocp4rony.dfw.ocp.run', 'apiVersion': '/v1'}, 'metricName': 'collectd_package_0_power_power', 'timestamp': '2022-08-05T04:39:21Z', 'value': '19.8481904884772', 'selector': None}]}
+10.129.0.1 - - [05/Aug/2022 04:39:21] "GET /apis/custom.metrics.k8s.io/v1beta2/nodes/%2A/collectd_package_0_power_power HTTP/1.1" 200 -
+```
+
+All the telemetry required by the TAS is now in place.
+
+## Scheduling
+
+This section covers the deployment of the scheduling/descheduling components including the TAS.
+
+### Deploy Intel-TAS
+
+Intel-TAS can be deployed in different ways. In this repository you can find the helm charts that are part of Intel Container Experience Kits.
+The TAS version used is 0.1. Intel has released version 0.2 but the possibility of running the TAS in "unsafe" mode with just `http` was removed completely. (work is in progress to get TLS between the scheduler and the TAS on OpenShift).
+
+Another options is to follow instruction on the [platform-aware-scheduling repo](https://github.com/intel/platform-aware-scheduling/tree/master/telemetry-aware-scheduling)
+
+In this case will use the helm chart provided by this repository and we will deploy the TAS in the `default` namespace.
+
+```
+# cd telemetry/telemetry-aware-scheduling/
+# oc create -f crd/tas-policy-crd.yaml
 # helm install telemetry-aware-scheduling -n default .
 ```
 
 Verify TAS is running `oc get pods -n default | grep tas`
 
-By default the helm chart will deploy a demopolicy, you can delete that one `oc delete taspolicy demo-policy -n default`
-
-Let's apply a simple policy to not schedule on the node if the power usage is less than 30 (this is just for example of course it doesn't make sense in a real use case)
-
-Reference to the [TAS documentation](https://github.com/intel/platform-aware-scheduling/tree/master/telemetry-aware-scheduling#policy-definition) for additional `TASPolicy` configuration
+A simple policy is provided as an example. Reference to the [TAS documentation](https://github.com/intel/platform-aware-scheduling/tree/master/telemetry-aware-scheduling#policy-definition) for additional `TASPolicy` configuration
 
 ```
 # oc create -f manifests/tas_policy.yaml -n default
@@ -443,52 +481,55 @@ Reference to the [TAS documentation](https://github.com/intel/platform-aware-sch
 apiVersion: telemetry.intel.com/v1alpha1
 kind: TASPolicy
 metadata:
-  name: scheduling-policy
+  name: power-policy
 spec:
   strategies:
     dontschedule:
       rules:
       - metricname: collectd_package_0_power_power
-        operator: LessThan
+        operator: GreaterThan
         target: 30
 ```
 
-
 Verify policy is read correctly and metrics per node are pulled:
+
 
 ```
 # oc logs -l "app.kubernetes.io/instance=tas" -n default
-I0727 16:44:24.866051       1 enforce.go:157] "Evaluating scheduling-policy" component="controller"
+I0727 16:44:24.866051       1 enforce.go:157] "Evaluating power-policy" component="controller"
 I0727 16:44:24.866145       1 strategy.go:41] "node7.ocp4rony.dfw.ocp.run collectd_package_0_power_power = 29.118254348" component="controller"
 I0727 16:44:24.866183       1 strategy.go:41] "node8.ocp4rony.dfw.ocp.run collectd_package_0_power_power = 23.462413467" component="controller"
 I0727 16:44:24.866206       1 strategy.go:41] "node9.ocp4rony.dfw.ocp.run collectd_package_0_power_power = 22.214324721" component="controller"
 ```
 
-TAS is running and evaluating our `scheduling-policy`
+TAS is running and evaluating our `power-policy`. We can now delete the policy and move to the next step.
+
+```
+# oc delete -f manifests/tas_policy.yaml -n default
+```
 
 
-## Deploy Secondary Scheduler Operator
+### Deploy Secondary Scheduler Operator
 
-Use Secondary Scheduler Operator to run a standard kubernetes scheduler that will use the deployed TAS as an extender.
+Secondary Scheduler Operator is used to run a standard kubernetes scheduler that will use the deployed TAS as an extender.
 
-### OpenShift >= 4.10
+#### OpenShift >= 4.10
 
 For OpenShift versions >= 4.10 go to OperatorHub on OpenShift Web Console, search for "Secondary Scheduler Operator" and install it from there. Once installed you can apply the following two manifests:
 
 ```
-# oc create -f secondary_scheduler_operator/06_configmap.yaml
-# oc create -f secondary_scheduler_operator/07_secondary-scheduler-operator.cr.yaml
+# oc create -f scheduling/secondary_scheduler_operator/06_configmap.yaml
+# oc create -f scheduling/secondary_scheduler_operator/07_secondary-scheduler-operator.cr.yaml
 ```
 
-### OpenShift < 4.10
+#### OpenShift < 4.10
 
 For OpenShift version lower than 4.10 you can use my container image or build your own following instructions at [https://github.com/openshift/secondary-scheduler-operator](https://github.com/openshift/secondary-scheduler-operator).
-If you build your own container image change `deploy_secondary_scheduler_operator/05_deployment.yaml` and point it to your registry/image otherwise it will use `quay.io/ferossi/secondary-scheduler-operator` as image
-
+If you build your own container image change `deploy_secondary_scheduler_operator/05_deployment.yaml` and point it to your registry/image otherwise it will use `quay.io/ferossi/secondary-scheduler-operator`.
 We can now deploy the manifests:
 
 ```
-# oc create -f secondary_scheduler_operator/
+# oc create -f scheduling/secondary_scheduler_operator/
 ```
 
 If you get an error on the last file `07_secondary-scheduler-operator.cr.yaml`, that means it didn't have enough time to create the CRD, if that happens just run `oc create -f secondary_scheduler_operator/07_secondary-scheduler-operator.cr.yaml`.
@@ -502,7 +543,66 @@ secondary-scheduler-5b6f6f55d4-6d6ht           1/1     Running   0          8m2s
 secondary-scheduler-operator-d4b6cf5bd-d5kwp   1/1     Running   0          9d
 ```
 
-## Test the setup
+### Deploy Descheduler Operator
+
+Descheduler Operator is available for installation on any OpenShift version >= 4.7. It allows control of pod evictions based on defined strategies.
+The TAS will evaluate policies and label nodes as violators, the descheduler will evict the pod from the node and re-schedule on available nodes based on the policy rules.
+
+Create namespace:
+
+```
+# oc create ns openshift-kube-descheduler-operator
+```
+
+Using OpenShift Web Console go under *Operators* -> *OperatorHub*. Search for "descheduler".
+
+![Descheduler Operator Step 1](img/descheduler_step1.png)
+
+Select the created namespace `openshift-kube-descheduler-operator` and press "Install".
+
+![Descheduler Operator Step 2](img/descheduler_step2.png)
+
+View Operator when installation is finished and click create `KubeDescheduler` instance.
+
+![Descheduler Operator Step 3](img/descheduler_step3.png)
+
+Change the default 3600 *Descheduler Interval Seconds*, this is how often the descheduler runs to identify any pod eviction.
+Set to 100 seconds in this case and click "Create".
+
+![Descheduler Operator Step 3](img/descheduler_step3.png)
+
+Verify the descheduler named "cluster" is running:
+
+```
+# oc get pods -n openshift-kube-descheduler-operator
+NAME                                    READY   STATUS    RESTARTS   AGE
+cluster-86f55fcd49-z74tj                1/1     Running   0          77s
+descheduler-operator-84b6469497-wrlpc   1/1     Running   0          4m10s
+```
+
+"cluster" pod now runs the descheduler binary and loads the `DeschedulerPolicy` defined in a configmap mounted on the pod:
+Just for reference this is where the configmap is mounted.
+
+```
+# oc exec -ti cluster-86f55fcd49-z74tj -n openshift-kube-descheduler-operator /bin/bash
+kubectl exec [POD] [COMMAND] is DEPRECATED and will be removed in a future version. Use kubectl exec [POD] -- [COMMAND] instead.
+bash-4.4$ ls
+bin  boot  certs-dir  dev  etc	home  lib  lib64  lost+found  media  mnt  opt  policy-dir  proc  root  run  sbin  srv  sys  tmp  usr  var
+bash-4.4$ cd policy-dir/
+bash-4.4$ ls
+policy.yaml
+```
+
+The configmap is the following:
+
+```
+# oc get configmap cluster -n openshift-kube-descheduler-operator -o yaml
+```
+
+The default `DeschedulerPolicy` will cover our TAS requirements to deschedule in case of any node affinity.
+
+
+## Demo 1
 
 Deploy a Pod to test if our deployment works:
 Apply the tasdemo_pod.yaml
