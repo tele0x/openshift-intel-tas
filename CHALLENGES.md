@@ -87,20 +87,3 @@ Intel-TAS is implemented using a [scheduler extender](https://github.com/kuberne
 
 .....
 
-
-## Descheduler
-
-strategy to deschedule not working in the logs I could see:
-
-I0804 22:35:33.070221       1 enforce.go:157] "Evaluating scheduling-policy" component="controller"
-I0804 22:35:33.070304       1 strategy.go:41] "node7.ocp4rony.dfw.ocp.run collectd_package_0_power_power = 33.432850985" component="controller"
-I0804 22:35:33.070336       1 strategy.go:44] "node7.ocp4rony.dfw.ocp.run violating scheduling-policy: collectd_package_0_power_power GreaterThan 25" component="controller"
-I0804 22:35:33.070357       1 strategy.go:41] "node8.ocp4rony.dfw.ocp.run collectd_package_0_power_power = 22.977231883" component="controller"
-I0804 22:35:33.070382       1 strategy.go:41] "node9.ocp4rony.dfw.ocp.run collectd_package_0_power_power = 20.058514142" component="controller"
-I0804 22:35:33.087582       1 enforce.go:144] "Node node7.ocp4rony.dfw.ocp.run violating scheduling-policy, " component="controller"
-
-
-Right after detecting the violation it should label the node with the violating: [policy-name] but that was not the case.
-
-So I started adding debug on the code and recompiling the TAS and run my own image to see why the node would not be labeled
-I was thinking an issue with RBAC but it would have given some kind of output of permission error.
