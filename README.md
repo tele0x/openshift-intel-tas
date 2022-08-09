@@ -43,14 +43,11 @@ This repository provides the instructions to run Intel-TAS on Red Hat OpenShift 
 
 > NOTE: intel-rapl is used to monitor power usage and will not work on VMs, in this case I have 3 baremetal nodes. On a VMs based cluster `intel-rapl` (Running Average Power Limit) will return the following error on the collectd container: [2022-08-02 15:39:18] [error] Unhandled python exception in loading module: OSError: [Errno 2] No such file or directory: '/sys/devices/virtual/powercap/intel-rapl/intel-rapl:0/max_energy_range_uj' Could not read power consumption wraparound value
 
-
 Other than this specific use case related to power usage you can use the TAS on a VMs based cluster with any other metric.
 
 ## Summary
 
-Below the high-level steps to run achieve 
-
-Steps to get the Intel-TAS working on OpenShift:
+Below the high-level steps to run Intel-TAS on OpenShift
 
 1. Clone this repository
 2. Activate UWM (User Workload Monitoring) in OpenShift.
