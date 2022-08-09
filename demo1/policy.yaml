@@ -4,6 +4,11 @@ metadata:
   name: power-policy
 spec:
   strategies:
+    scheduleonmetric:
+      rules:
+      - metricname: collectd_package_0_power_power
+        operator: LessThan
+        target: 30
     deschedule:
       rules:
       - metricname: collectd_package_0_power_power
