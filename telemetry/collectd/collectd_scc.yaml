@@ -1,13 +1,13 @@
 kind: SecurityContextConstraints
 metadata:
   name: collectd-scc
-allowHostDirVolumePlugin: false
-allowHostIPC: false
+allowHostDirVolumePlugin: true
+allowHostIPC: true
 allowHostNetwork: true
-allowHostPID: false
+allowHostPID: true
 allowHostPorts: true
 allowPrivilegeEscalation: true
-allowPrivilegedContainer: false
+allowPrivilegedContainer: true
 allowedCapabilities: null
 apiVersion: security.openshift.io/v1
 defaultAddCapabilities: null
@@ -24,10 +24,11 @@ requiredDropCapabilities:
 runAsUser:
   type: RunAsAny
 seLinuxContext:
-  type: MustRunAs
+  type: RunAsAny
 supplementalGroups:
   type: RunAsAny
 users:
+- system:serviceaccount:telemetry:default
 volumes:
 - configMap
 - downwardAPI
