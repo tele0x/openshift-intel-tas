@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: stress-ng
+  namespace: default
+  labels:
+    app: stress-ng
+spec:
+  containers:
+  - name: stress-ng
+    image: alexeiled/stress-ng:latest-ubuntu
+    imagePullPolicy: Always
+    args:
+    - tail
+    - -f
+    - /dev/null
+    securityContext:
+      # privileged: true
+      capabilities:
+        add: ["SYS_ADMIN"]
+  nodeSelector: 
+    kubernetes.io/hostname: node7.ocp4rony.dfw.ocp.run

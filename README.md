@@ -341,6 +341,8 @@ The metrics-proxy is a component responsible of translating Prometheus queries r
 
 edit `deploy/deployment.yaml` and change the variables for PROMETHEUS_HOST and PROMETHEUS_TOKEN, you can either query directly prometheus or go through Thanos. In this case will just go through Thanos, PROMETHEUS_HOST and PROMETHEUS_TOKEN has to match with the previous variables values for THANOS_QUERIER_HOST and TOKEN.
 
+TODO: Instead of using env variables, use a better method such as secrets.
+
 We can now deploy the metrics-proxy:
 
 ```
@@ -376,7 +378,7 @@ thanos-querier-6957dbc8d4-jt7wj               5/5     Running   0          3d21h
 Verify custom metrics APIService is active:
 
 ```
-# oc get apiservice | grep custom```
+# oc get apiservice | grep custom
 v1beta1.custom.metrics.k8s.io                 openshift-monitoring/metrics-proxy                           True        36d
 v1beta2.custom.metrics.k8s.io                 openshift-monitoring/metrics-proxy                           True        36d
 ```
@@ -432,7 +434,7 @@ Status of "True" means the API is now available, we can test it with this reques
 Logs from metrics-proxy:
 
 ```
-# oc logs -f -l app=metrics-proxy -n openshift
+# oc logs -f -l app=metrics-proxy -n openshift-monitoring
 Retrieve metric: collectd_package_0_power_power
 GET URL: https://prometheus-k8s-openshift-monitoring.apps.ocp4rony.dfw.ocp.run/api/v1/query?query=collectd_package_0_power_power
 <Response [200]>
@@ -462,12 +464,12 @@ Another options is to follow instruction on the [platform-aware-scheduling repo]
 In this case will use the helm chart provided by this repository and we will deploy the TAS in the `default` namespace.
 
 ```
-# cd telemetry/telemetry-aware-scheduling/
+# cd scheduling/telemetry-aware-scheduling/
 # oc create -f crd/tas-policy-crd.yaml
 # helm install telemetry-aware-scheduling -n default .
 ```
 
-Verify TAS is running `oc get pods -n default | grep tas`
+Verify TAS is running `oc get pods -n default | grep telemetry-aware`
 
 A simple policy is provided as an example. Reference to the [TAS documentation](https://github.com/intel/platform-aware-scheduling/tree/master/telemetry-aware-scheduling#policy-definition) for additional `TASPolicy` configuration
 
