@@ -34,7 +34,7 @@ serviceAccount: {}
 
 service:
   type: ClusterIP
-  port: 80
+  port: 9001
 
 tls:
   enabled: false
