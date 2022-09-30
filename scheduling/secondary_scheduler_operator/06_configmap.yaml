@@ -13,7 +13,7 @@ data:
           - schedulerName: secondary-scheduler
         extenders:
           #- urlPrefix: "https://172.30.112.89:9001"
-          - urlPrefix: "http://tas-telemetry-aware-scheduling.default.svc.cluster.local:9001"  
+          - urlPrefix: "http://telemetry-aware-scheduling.default.svc.cluster.local:9001"  
             prioritizeVerb: "scheduler/prioritize"
             filterVerb: "scheduler/filter"
             weight: 1
